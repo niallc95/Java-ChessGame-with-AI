@@ -1,0 +1,2 @@
+# Java-ChessGame-with-AI-Components
+Extension from the Java chess game I worked on for my Artificial intelligence module. This code contains an AI agent who will play against the user using three different AI strategies. The code itself is similar to the original chess game just with added AI strategies for the opponent so it is still very messy but it was primarily used to teach me AI strategies and how to implement them into a game in Java.
