@@ -19,7 +19,6 @@ import javax.swing.BoxLayout;
 /**************************************************CHESS PROJECT CA4 SUBMISSION******************************************************************************/
 /************************************************************************************************************************************************************/
 
-
 public class ChessProject extends JFrame implements MouseListener, MouseMotionListener {
     JLayeredPane layeredPane;
     JPanel chessBoard;
@@ -39,7 +38,29 @@ public class ChessProject extends JFrame implements MouseListener, MouseMotionLi
     AIAgent agent;
     Boolean agentwins;
     Stack temporary;
+	static int chosen;
+	
+	
+/************************************************************************************************************************************************************/
+/**************************************************MAIN METHOD***********************************************************************************************/
+/************************************************************************************************************************************************************/
 
+    public static void main(String[] args) {
+        ChessProject frame = new ChessProject();
+        frame.setDefaultCloseOperation(DISPOSE_ON_CLOSE );
+        frame.pack();
+        frame.setResizable(true);
+        frame.setLocationRelativeTo( null );
+        frame.setVisible(true);
+        Object[] options = {"Random Moves","Best Next Move","Based on Opponents Moves"};
+        int n = JOptionPane.showOptionDialog(frame,"I want to play a game, choose your AI opponent","Intoduction to AI CA4 Submission x13440572", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE,null,options,options[2]);
+        System.out.println("Your chosen opponent is : "+n);
+		chosen = n;
+        frame.makeAIMove();
+  }
+/************************************************************************************************************************************************************/
+/**************************************************DESIGNING THE UI FOR THE BOARD****************************************************************************/
+/************************************************************************************************************************************************************/
 
     public ChessProject(){
         Dimension boardSize = new Dimension(600, 600);
@@ -61,9 +82,9 @@ public class ChessProject extends JFrame implements MouseListener, MouseMotionLi
 
             int row = (i / 8) % 2;
             if (row == 0)
-                square.setBackground( i % 2 == 0 ? Color.white : Color.gray );
-            else
                 square.setBackground( i % 2 == 0 ? Color.gray : Color.orange );
+            else
+                square.setBackground( i % 2 == 0 ? Color.orange : Color.gray );
         }
 
 /************************************************************************************************************************************************************/
@@ -617,6 +638,34 @@ private void getLandingSquares(Stack found){
     }
     return squares;
   }
+  
+  /*
+  Method to find all the Black Pieces.
+*/
+  private Stack findBlackPieces(){
+    Stack squares = new Stack();
+    String icon;
+    int x;
+    int y;
+    String pieceName;
+    for(int i=0;i < 600;i+=75){
+      for(int j=0;j < 600;j+=75){
+        y = i/75;
+        x=j/75;
+        Component tmp = chessBoard.findComponentAt(j, i);
+        if(tmp instanceof JLabel){
+          chessPiece = (JLabel)tmp;
+          icon = chessPiece.getIcon().toString();
+          pieceName = icon.substring(0, (icon.length()-4));
+          if(pieceName.contains("Black")){
+            Square stmp = new Square(x, y, pieceName);
+            squares.push(stmp);
+          }
+        }
+      }
+    }
+    return squares;
+  }
   /************************************************************************************************************************************************************/
 /**************************************************GET KNIGHT MOVES END***************************************************************************************/
 /************************************************************************************************************************************************************/
@@ -626,24 +675,23 @@ private void getLandingSquares(Stack found){
 /************************************************************************************************************************************************************/
 
 private Stack getPawnMoves(int x, int y, String piece){
-  Stack completeMoves = new Stack();
-  Stack tmpMoves = new Stack();
-  Move tmp;
-
-  tmpMoves = getRookMoves(x, y, piece);
-  while(!tmpMoves.empty()){
-    tmp = (Move)tmpMoves.pop();
-    completeMoves.push(tmp);
-  }
-  tmpMoves = getBishopMoves(x, y, piece);
-  while(!tmpMoves.empty()){
-    tmp = (Move)tmpMoves.pop();
-    completeMoves.push(tmp);
-  }
-  return completeMoves;
+  Square startingSquare = new Square(x, y, piece);
+  Stack moves = new Stack();
+  Move validM;
+	int tmpx = x;	
+    int tmpy = y+1;
+    if(!(tmpy > 7 || tmpy < 0)){
+      Square tmp = new Square(tmpx, tmpy, piece);
+      validM = new Move(startingSquare, tmp);
+      if(!piecePresent(((tmp.getXC()*75)+20), (((tmp.getYC()*75)+20)))){
+        moves.push(validM);
+      }
+      else if(checkWhiteOponent(((tmp.getXC()*75)+20), ((tmp.getYC()*75)+20))){
+          moves.push(validM);
+      }
+    } 
+  return moves;
 }
-
-
 /************************************************************************************************************************************************************/
 /**************************************************GET PAWN MOVES END***************************************************************************************/
 /************************************************************************************************************************************************************/
@@ -720,8 +768,11 @@ private void printStack(Stack input){
     layeredPane.validate();
     layeredPane.repaint();
     Stack white = findWhitePieces();
+	Stack black = findBlackPieces();
     Stack completeMoves = new Stack();
     Move tmp;
+	
+	//Setup white stack
     while(!white.empty()){
       Square s = (Square)white.pop();
       String tmpString = s.getName();
@@ -754,28 +805,22 @@ private void printStack(Stack input){
         completeMoves.push(tmp);
       }
     }
+    
     temporary = (Stack)completeMoves.clone();
     getLandingSquares(temporary);
     printStack(temporary);
 /*
   So now we should have a copy of all the possible moves to make in our Stack called completeMoves
 */
-  if(completeMoves.size() == 0){
-/*
-      In Chess if you cannot make a valid move but you are not in Check this state is referred to
-      as a Stale Mate
-*/
-  JOptionPane.showMessageDialog(null, "Cogratulations, you have placed the AI component in a Stale Mate Position");
-  System.exit(0);
 
-  }
-  else{
-    /*
-      Okay, so we can make a move now. We have a stack of all possible moves and need to call the correct agent to select
-      one of these moves. Lets print out the possible moves to the standard output to view what the options are for
-      White. Later when you are finished the continuous assessment you don't need to have such information being printed
-      out to the standard output.
-    */
+/*
+  Handle a stale mate game
+*/
+  if(completeMoves.size() == 0){
+  JOptionPane.showMessageDialog(null, "Cogratulations, you have placed the AI in a Stale Mate Position. You won!");
+  System.exit(0);
+  }else{
+    
       System.out.println("=============================================================");
       Stack testing = new Stack();
       while(!completeMoves.empty()){
@@ -785,59 +830,189 @@ private void printStack(Stack input){
         System.out.println("The "+s1.getName()+" can move from ("+s1.getXC()+", "+s1.getYC()+") to the following square: ("+s2.getXC()+", "+s2.getYC()+")");
         testing.push(tmpMove);
       }
-       System.out.println("=============================================================");
-       Border redBorder = BorderFactory.createLineBorder(Color.RED, 3);
-       Move selectedMove = agent.randomMove(testing);
-       Square startingPoint = (Square)selectedMove.getStart();
-       Square landingPoint = (Square)selectedMove.getLanding();
-       int startX1 = (startingPoint.getXC()*75)+20;
-       int startY1 = (startingPoint.getYC()*75)+20;
-       int landingX1 = (landingPoint.getXC()*75)+20;
-       int landingY1 = (landingPoint.getYC()*75)+20;
-       System.out.println("-------- Move "+startingPoint.getName()+" ("+startingPoint.getXC()+", "+startingPoint.getYC()+") to ("+landingPoint.getXC()+", "+landingPoint.getYC()+")");
+	  /************************************************************************************************************************************************************/
+	  /**************************************************RANDOM AI MOVES********************************************************************************************/
+	  /************************************************************************************************************************************************************/
+	  if(chosen==0){
+		   System.out.println("=============================================================");
+		   Border redBorder = BorderFactory.createLineBorder(Color.RED, 3);
+		   Move selectedMove = agent.randomMove(testing);
+		   Square startingPoint = (Square)selectedMove.getStart();
+		   Square landingPoint = (Square)selectedMove.getLanding();
+		   int startX1 = (startingPoint.getXC()*75)+20;
+		   int startY1 = (startingPoint.getYC()*75)+20;
+		   int landingX1 = (landingPoint.getXC()*75)+20;
+		   int landingY1 = (landingPoint.getYC()*75)+20;
+		   System.out.println("-------- Move "+startingPoint.getName()+" ("+startingPoint.getXC()+", "+startingPoint.getYC()+") to ("+landingPoint.getXC()+", "+landingPoint.getYC()+")");
 
-       Component c  = (JLabel)chessBoard.findComponentAt(startX1, startY1);
-       Container parent = c.getParent();
-       parent.remove(c);
-       int panelID = (startingPoint.getYC() * 8)+startingPoint.getXC();
-       panels = (JPanel)chessBoard.getComponent(panelID);
-       panels.setBorder(redBorder);
-       parent.validate();
+		   Component c  = (JLabel)chessBoard.findComponentAt(startX1, startY1);
+		   Container parent = c.getParent();
+		   parent.remove(c);
+		   int panelID = (startingPoint.getYC() * 8)+startingPoint.getXC();
+		   panels = (JPanel)chessBoard.getComponent(panelID);
+		   panels.setBorder(redBorder);
+		   parent.validate();
 
-       Component l = chessBoard.findComponentAt(landingX1, landingY1);
-       if(l instanceof JLabel){
-          Container parentlanding = l.getParent();
-          JLabel awaitingName = (JLabel)l;
-          String agentCaptured = awaitingName.getIcon().toString();
-          if(agentCaptured.contains("King")){
-            agentwins = true;
-          }
-          parentlanding.remove(l);
-          parentlanding.validate();
-          pieces = new JLabel( new ImageIcon(startingPoint.getName()+".png") );
-          int landingPanelID = (landingPoint.getYC()*8)+landingPoint.getXC();
-          panels = (JPanel)chessBoard.getComponent(landingPanelID);
-          panels.add(pieces);
-          panels.setBorder(redBorder);
-          layeredPane.validate();
-          layeredPane.repaint();
+		   Component l = chessBoard.findComponentAt(landingX1, landingY1);
+		   if(l instanceof JLabel){
+			  Container parentlanding = l.getParent();
+			  JLabel awaitingName = (JLabel)l;
+			  String agentCaptured = awaitingName.getIcon().toString();
+			  //If captured king the agent will win
+			  if(agentCaptured.contains("King")){
+				agentwins = true;
+			  }
+			  parentlanding.remove(l);
+			  parentlanding.validate();
+			  pieces = new JLabel( new ImageIcon(startingPoint.getName()+".png") );
+			  int landingPanelID = (landingPoint.getYC()*8)+landingPoint.getXC();
+			  panels = (JPanel)chessBoard.getComponent(landingPanelID);
+			  panels.add(pieces);
+			  panels.setBorder(redBorder);
+			  layeredPane.validate();
+			  layeredPane.repaint();
+				
+			  //Output when the AI wins
+			  if(agentwins){
+				JOptionPane.showMessageDialog(null, "The AI Agent has won!");
+				System.exit(0);
+			  }
+			}
+			else{
+			  pieces = new JLabel( new ImageIcon(startingPoint.getName()+".png") );
+			  int landingPanelID = (landingPoint.getYC()*8)+landingPoint.getXC();
+			  panels = (JPanel)chessBoard.getComponent(landingPanelID);
+			  panels.add(pieces);
+			  panels.setBorder(redBorder);
+			  layeredPane.validate();
+			  layeredPane.repaint();
+			}
+			white2Move = false;
+		  }
+		  
+	  /************************************************************************************************************************************************************/
+	  /**************************************************NEXT BEST AI MOVE********************************************************************************************/
+	  /************************************************************************************************************************************************************/
+	  else if(chosen==1){
+		   System.out.println("=============================================================");
+		   Border redBorder = BorderFactory.createLineBorder(Color.RED, 3);
+		   Move selectedMove = agent.nextBestMove(testing);
+		   Square startingPoint = (Square)selectedMove.getStart();
+		   Square landingPoint = (Square)selectedMove.getLanding();
+		   int startX1 = (startingPoint.getXC()*75)+20;
+		   int startY1 = (startingPoint.getYC()*75)+20;
+		   int landingX1 = (landingPoint.getXC()*75)+20;
+		   int landingY1 = (landingPoint.getYC()*75)+20;
+		   System.out.println("-------- Move "+startingPoint.getName()+" ("+startingPoint.getXC()+", "+startingPoint.getYC()+") to ("+landingPoint.getXC()+", "+landingPoint.getYC()+")");
 
-          if(agentwins){
-            JOptionPane.showMessageDialog(null, "The AI Agent has won!");
-            System.exit(0);
-          }
-        }
-        else{
-          pieces = new JLabel( new ImageIcon(startingPoint.getName()+".png") );
-          int landingPanelID = (landingPoint.getYC()*8)+landingPoint.getXC();
-          panels = (JPanel)chessBoard.getComponent(landingPanelID);
-          panels.add(pieces);
-          panels.setBorder(redBorder);
-          layeredPane.validate();
-          layeredPane.repaint();
-        }
-        white2Move = false;
-  }
+		   Component c  = (JLabel)chessBoard.findComponentAt(startX1, startY1);
+		   Container parent = c.getParent();
+		   parent.remove(c);
+		   int panelID = (startingPoint.getYC() * 8)+startingPoint.getXC();
+		   panels = (JPanel)chessBoard.getComponent(panelID);
+		   panels.setBorder(redBorder);
+		   parent.validate();
+
+		   Component l = chessBoard.findComponentAt(landingX1, landingY1);
+		   if(l instanceof JLabel){
+			  Container parentlanding = l.getParent();
+			  JLabel awaitingName = (JLabel)l;
+			  String agentCaptured = awaitingName.getIcon().toString();
+			  //If captured king the agent will win
+			  if(agentCaptured.contains("King")){
+				agentwins = true;
+			  }
+			  parentlanding.remove(l);
+			  parentlanding.validate();
+			  pieces = new JLabel( new ImageIcon(startingPoint.getName()+".png") );
+			  int landingPanelID = (landingPoint.getYC()*8)+landingPoint.getXC();
+			  panels = (JPanel)chessBoard.getComponent(landingPanelID);
+			  panels.add(pieces);
+			  panels.setBorder(redBorder);
+			  layeredPane.validate();
+			  layeredPane.repaint();
+				
+			  //Output when the AI wins
+			  if(agentwins){
+				JOptionPane.showMessageDialog(null, "The AI Agent has won!");
+				System.exit(0);
+			  }
+			}
+			else{
+			  pieces = new JLabel( new ImageIcon(startingPoint.getName()+".png") );
+			  int landingPanelID = (landingPoint.getYC()*8)+landingPoint.getXC();
+			  panels = (JPanel)chessBoard.getComponent(landingPanelID);
+			  panels.add(pieces);
+			  panels.setBorder(redBorder);
+			  layeredPane.validate();
+			  layeredPane.repaint();
+			}
+			white2Move = false;
+		  }
+		  
+	  /************************************************************************************************************************************************************/
+	  /**************************************************TWO STEP AI MOVE********************************************************************************************/
+	  /************************************************************************************************************************************************************/
+	  if(chosen==2){
+		   System.out.println("=============================================================");
+		   Border redBorder = BorderFactory.createLineBorder(Color.RED, 3);
+		   Move selectedMove = agent.twoLevelsDeep(testing);
+		   Square startingPoint = (Square)selectedMove.getStart();
+		   Square landingPoint = (Square)selectedMove.getLanding();
+		   int startX1 = (startingPoint.getXC()*75)+20;
+		   int startY1 = (startingPoint.getYC()*75)+20;
+		   int landingX1 = (landingPoint.getXC()*75)+20;
+		   int landingY1 = (landingPoint.getYC()*75)+20;
+		   System.out.println("-------- Move "+startingPoint.getName()+" ("+startingPoint.getXC()+", "+startingPoint.getYC()+") to ("+landingPoint.getXC()+", "+landingPoint.getYC()+")");
+
+		   Component c  = (JLabel)chessBoard.findComponentAt(startX1, startY1);
+		   Container parent = c.getParent();
+		   parent.remove(c);
+		   int panelID = (startingPoint.getYC() * 8)+startingPoint.getXC();
+		   panels = (JPanel)chessBoard.getComponent(panelID);
+		   panels.setBorder(redBorder);
+		   parent.validate();
+
+		   Component l = chessBoard.findComponentAt(landingX1, landingY1);
+		   if(l instanceof JLabel){
+			  Container parentlanding = l.getParent();
+			  JLabel awaitingName = (JLabel)l;
+			  String agentCaptured = awaitingName.getIcon().toString();
+			  //If captured king the agent will win
+			  if(agentCaptured.contains("King")){
+				agentwins = true;
+			  }
+			  parentlanding.remove(l);
+			  parentlanding.validate();
+			  pieces = new JLabel( new ImageIcon(startingPoint.getName()+".png") );
+			  int landingPanelID = (landingPoint.getYC()*8)+landingPoint.getXC();
+			  panels = (JPanel)chessBoard.getComponent(landingPanelID);
+			  panels.add(pieces);
+			  panels.setBorder(redBorder);
+			  layeredPane.validate();
+			  layeredPane.repaint();
+				
+			  //Output when the AI wins
+			  if(agentwins){
+				JOptionPane.showMessageDialog(null, "The AI Agent has won!");
+				System.exit(0);
+			  }
+			}
+			else{
+			  pieces = new JLabel( new ImageIcon(startingPoint.getName()+".png") );
+			  int landingPanelID = (landingPoint.getYC()*8)+landingPoint.getXC();
+			  panels = (JPanel)chessBoard.getComponent(landingPanelID);
+			  panels.add(pieces);
+			  panels.setBorder(redBorder);
+			  layeredPane.validate();
+			  layeredPane.repaint();
+			}
+			white2Move = false;
+		  }
+		  
+		  
+		  
+	}
 }
 /************************************************************************************************************************************************************/
 /**************************************************AI AGENTS MOVE END***************************************************************************************/
@@ -1164,7 +1339,7 @@ private void printStack(Stack input){
                         */
 
                         if(getPieceName(e.getX(), e.getY()).contains("King")){
-                          winner = "White Wins!";
+                          winner = "You lost to a machine.... Congrats";
                         }
                       }
                       else{
@@ -1175,7 +1350,7 @@ private void printStack(Stack input){
                       if(checkBlackOponent(e.getX(), e.getY())){
                         validMove = true;
                         if(getPieceName(e.getX(), e.getY()).contains("King")){
-                          winner = "Black Wins!";
+                          winner = "Congradulations you beat the AI!!";
                         }
                       }
                       else{
@@ -1210,7 +1385,7 @@ private void printStack(Stack input){
                 if(checkWhiteOponent(e.getX(), e.getY())){
                   validMove = true;
                   if(getPieceName(e.getX(), e.getY()).contains("King")){
-                    winner = "White Wins!";
+                    winner = "You lost to a machine.... Congrats";
                   }
                 }
               }
@@ -1218,7 +1393,7 @@ private void printStack(Stack input){
                 if(checkBlackOponent(e.getX(), e.getY())){
                   validMove = true;
                   if(getPieceName(e.getX(), e.getY()).contains("King")){
-                    winner = "Black Wins!";
+                    winner = "Congradulations you beat the AI!!";
                   }
                 }
               }
@@ -1329,7 +1504,7 @@ private void printStack(Stack input){
                       if(checkWhiteOponent(e.getX(), e.getY())){
                         validMove = true;
                         if(getPieceName(e.getX(), e.getY()).contains("King")){
-                          winner = "White Wins!";
+                          winner = "You lost to a machine.... Congrats";
                         }
                       }
                     }
@@ -1337,7 +1512,7 @@ private void printStack(Stack input){
                       if(checkBlackOponent(e.getX(), e.getY())){
                         validMove = true;
                         if(getPieceName(e.getX(), e.getY()).contains("King")){
-                          winner = "Black Wins!";
+                          winner = "Congradulations you beat the AI!!";
                         }
                       }
                     }
@@ -1418,7 +1593,7 @@ private void printStack(Stack input){
                       if(checkWhiteOponent(e.getX(), e.getY())){
                         validMove = true;
                         if(getPieceName(e.getX(), e.getY()).contains("King")){
-                          winner = "White Wins!";
+                          winner = "You lost to a machine.... Congrats";
                         }
                       }
                     }
@@ -1426,7 +1601,7 @@ private void printStack(Stack input){
                       if(checkBlackOponent(e.getX(), e.getY())){
                         validMove = true;
                         if(getPieceName(e.getX(), e.getY()).contains("King")){
-                          winner = "Black Wins!";
+                          winner = "Congradulations you beat the AI!!";
                         }
                       }
                     }
@@ -1463,7 +1638,7 @@ private void printStack(Stack input){
                 if(checkBlackOponent(e.getX(), e.getY())){
                   validMove = true;
                   if(getPieceName(e.getX(), e.getY()).contains("King")){
-                    winner = "Black Wins!";
+                    winner = "Congradulations you beat the AI!!";
                   }
                 }
               }
@@ -1490,7 +1665,7 @@ private void printStack(Stack input){
                     progression = true;
                   }
                   if(getPieceName(e.getX(), e.getY()).contains("King")){
-                    winner = "Black Wins!";
+                    winner = "Congradulations you beat the AI!!";
                   }
                 }
               }
@@ -1648,20 +1823,5 @@ private void printStack(Stack input){
     public void startGame(){
       System.out.println("I want to play a game");
     }
-/************************************************************************************************************************************************************/
-/**************************************************MAIN METHOD***********************************************************************************************/
-/************************************************************************************************************************************************************/
 
-    public static void main(String[] args) {
-        ChessProject frame = new ChessProject();
-        frame.setDefaultCloseOperation(DISPOSE_ON_CLOSE );
-        frame.pack();
-        frame.setResizable(true);
-        frame.setLocationRelativeTo( null );
-        frame.setVisible(true);
-        Object[] options = {"Random Moves","Best Next Move","Based on Opponents Moves"};
-        int n = JOptionPane.showOptionDialog(frame,"I want to play a game, choose your AI opponent","Intoduction to AI CA4 Submission x13440572", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE,null,options,options[2]);
-        System.out.println("Your chosen opponent is : "+n);
-        frame.makeAIMove();
-  }
 }
