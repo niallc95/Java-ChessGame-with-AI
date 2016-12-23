@@ -642,7 +642,7 @@ private void getLandingSquares(Stack found){
   /*
   Method to find all the Black Pieces.
 */
-  private Stack findBlackPieces(){
+  Stack findBlackPieces(){
     Stack squares = new Stack();
     String icon;
     int x;
@@ -896,7 +896,7 @@ private void printStack(Stack input){
 	  else if(chosen==1){
 		   System.out.println("=============================================================");
 		   Border redBorder = BorderFactory.createLineBorder(Color.RED, 3);
-		   Move selectedMove = agent.nextBestMove(testing);
+		   Move selectedMove = agent.nextBestMove(testing, black);
 		   Square startingPoint = (Square)selectedMove.getStart();
 		   Square landingPoint = (Square)selectedMove.getLanding();
 		   int startX1 = (startingPoint.getXC()*75)+20;
@@ -956,7 +956,7 @@ private void printStack(Stack input){
 	  if(chosen==2){
 		   System.out.println("=============================================================");
 		   Border redBorder = BorderFactory.createLineBorder(Color.RED, 3);
-		   Move selectedMove = agent.twoLevelsDeep(testing);
+		   Move selectedMove = agent.twoLevelsDeep(testing, black);
 		   Square startingPoint = (Square)selectedMove.getStart();
 		   Square landingPoint = (Square)selectedMove.getLanding();
 		   int startX1 = (startingPoint.getXC()*75)+20;
@@ -1317,27 +1317,14 @@ private void printStack(Stack input){
                   }
                 }
                 if(intheway){
-                  /*
-                      if we have found that there is something in the way to the square we are trying to
-                      move to we simply set the validMove boolean to false...
-                  */
                   validMove = false;
                 }
                 else{
-                  /*
-                      okay so we have established that there is nothing in the way and we want to make try and
-                      move the piece. The other condiion that we need to check is to see if there is a piece at
-                      the landing square that we want to move to.
-                  */
-                  if(piecePresent(e.getX(), (e.getY()))){
+                   if(piecePresent(e.getX(), (e.getY()))){
                     if(pieceName.contains("White")){
                       if(checkWhiteOponent(e.getX(), e.getY())){
                         validMove = true;
-                        /*
-                          Every time we make a take a piece we need to check if the piece that has been captured
-                          is a King.
-                        */
-
+                        
                         if(getPieceName(e.getX(), e.getY()).contains("King")){
                           winner = "You lost to a machine.... Congrats";
                         }
@@ -1370,12 +1357,6 @@ private void printStack(Stack input){
         }
         else if(pieceName.contains("Knight")){
 
-          /*
-              We know that the Knight can move in an L direction. It means that if the xMovement == 1 then the yMovement
-              must equal 2 and also the other way around...
-              We need to check the square that we are moving to and make sure that if there is a piece present
-              that its not our own piece...
-          */
           if(((xMovement == 1)&&(yMovement ==2))||((xMovement==2)&&(yMovement==1))){
             if(!piecePresent(e.getX(), e.getY())){
               validMove = true;
@@ -1732,7 +1713,7 @@ private void printStack(Stack input){
                }
              }
            }
-    } //end of possible.
+    } //end if possible.
 
     if(!validMove){
       int location=0;
